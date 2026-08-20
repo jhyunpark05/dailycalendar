@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily task calendar</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
+  body { background: #FAF7F1; margin: 0; padding: 32px 16px; }
+  .dtc { font-family: 'Inter', sans-serif; color: #262420; max-width: 640px; margin: 0 auto; }
+  .dtc * { box-sizing: border-box; }
+  .dtc-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
+  .dtc-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 26px; letter-spacing: -0.01em; }
+  .dtc-navbtn { border: none; background: transparent; cursor: pointer; color: #8A8478; padding: 6px 10px; border-radius: 8px; font-size: 15px; }
+  .dtc-navbtn:hover { background: #EFE9DD; color: #262420; }
+  .dtc-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .dtc-dow { text-align: center; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #8A8478; padding-bottom: 6px; }
+  .dtc-cell { position: relative; aspect-ratio: 1 / 0.92; border-radius: 10px; border: 1px solid #EAE3D5; background: #FFFFFF; cursor: pointer; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; transition: border-color .12s, background .12s; }
+  .dtc-cell:hover { border-color: #C9BFA9; }
+  .dtc-cell.dtc-empty { border: none; background: transparent; cursor: default; }
+  .dtc-cell.dtc-today { border-color: #2F5D50; box-shadow: inset 0 0 0 1px #2F5D50; }
+  .dtc-cell.dtc-selected { background: #2F5D50; border-color: #2F5D50; }
+  .dtc-cell.dtc-selected .dtc-num { color: #FAF7F1; }
+  .dtc-num { font-size: 13px; font-weight: 500; color: #262420; }
+  .dtc-dots { display: flex; gap: 3px; flex-wrap: wrap; }
+  .dtc-dot { width: 5px; height: 5px; border-radius: 50%; background: #C1512C; }
+  .dtc-dot.done { background: #B4AC9B; }
+  .dtc-cell.dtc-selected .dtc-dot { background: #E7DFCB; }
+  .dtc-cell.dtc-selected .dtc-dot.done { background: #6E8A80; }
+  .dtc-panel { margin-top: 22px; background: #FFFFFF; border: 1px solid #EAE3D5; border-radius: 12px; padding: 18px 20px; }
+  .dtc-panel-date { font-family: 'Fraunces', serif; font-weight: 500; font-size: 17px; margin-bottom: 12px; }
+  .dtc-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #F2EDE2; }
+  .dtc-row:last-of-type { border-bottom: none; }
+  .dtc-check { width: 17px; height: 17px; border-radius: 5px; border: 1.5px solid #C9BFA9; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #fff; }
+  .dtc-check.on { background: #2F5D50; border-color: #2F5D50; }
+  .dtc-check i { font-size: 12px; color: #fff; }
+  .dtc-text { flex: 1; font-size: 14px; }
+  .dtc-text.done { color: #B4AC9B; text-decoration: line-through; }
+  .dtc-time { font-size: 12px; color: #8A8478; min-width: 118px; flex-shrink: 0; }
+  .dtc-time.done { color: #C9BFA9; }
+  .dtc-del { background: none; border: none; cursor: pointer; color: #C9BFA9; font-size: 15px; padding: 4px; }
+  .dtc-del:hover { color: #C1512C; }
+  .dtc-addrow { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .dtc-input { flex: 1; min-width: 140px; border: 1px solid #EAE3D5; border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; }
+  .dtc-timeinput { width: 108px; border: 1px solid #EAE3D5; border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; flex-shrink: 0; }
+  .dtc-timesep { align-self: center; color: #8A8478; font-size: 13px; }
+  .dtc-input:focus, .dtc-timeinput:focus { outline: none; border-color: #2F5D50; }
+  .dtc-addbtn { border: none; background: #2F5D50; color: #FAF7F1; border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .dtc-addbtn:hover { background: #26493F; }
+  .dtc-empty-msg { font-size: 13px; color: #8A8478; padding: 4px 0 8px; }
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+</head>
+<body>
+<div class="dtc">
+  <h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">Daily task calendar to track tasks by day</h2>
+  <div class="dtc-head">
+    <div class="dtc-title" id="dtc-month"></div>
+    <div>
+      <button class="dtc-navbtn" id="dtc-prev">&larr;</button>
+      <button class="dtc-navbtn" id="dtc-today-btn">today</button>
+      <button class="dtc-navbtn" id="dtc-next">&rarr;</button>
+    </div>
+  </div>
+  <div class="dtc-grid" id="dtc-dow-row"></div>
+  <div class="dtc-grid" id="dtc-grid" style="margin-top:6px;"></div>
+  <div class="dtc-panel">
+    <div class="dtc-panel-date" id="dtc-panel-date"></div>
+    <div id="dtc-tasklist"></div>
+    <div class="dtc-addrow">
+      <input class="dtc-timeinput" id="dtc-newtime-start" type="time" />
+      <span class="dtc-timesep">&ndash;</span>
+      <input class="dtc-timeinput" id="dtc-newtime-end" type="time" />
+      <input class="dtc-input" id="dtc-newtask" placeholder="Add a task for this day" />
+      <button class="dtc-addbtn" id="dtc-addbtn">Add</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const dowNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const today = new Date();
+  const todayKey = fmtKey(today);
+  let viewYear = today.getFullYear();
+  let viewMonth = today.getMonth();
+  let selectedKey = todayKey;
+  let taskCache = {};
+
+  function fmtKey(d){
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function loadTasks(key){
+    if (taskCache[key]) return taskCache[key];
+    try {
+      const raw = localStorage.getItem('dtc-tasks:' + key);
+      const val = raw ? JSON.parse(raw) : [];
+      taskCache[key] = val;
+      return val;
+    } catch(e){
+      taskCache[key] = [];
+      return [];
+    }
+  }
+
+  function saveTasks(key, tasks){
+    taskCache[key] = tasks;
+    try { localStorage.setItem('dtc-tasks:' + key, JSON.stringify(tasks)); } catch(e){}
+  }
+
+  const dowRow = document.getElementById('dtc-dow-row');
+  dowNames.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'dtc-dow';
+    el.textContent = n;
+    dowRow.appendChild(el);
+  });
+
+  function renderGrid(){
+    document.getElementById('dtc-month').textContent = monthNames[viewMonth] + ' ' + viewYear;
+    const grid = document.getElementById('dtc-grid');
+    grid.innerHTML = '';
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++){
+      const empty = document.createElement('div');
+      empty.className = 'dtc-cell dtc-empty';
+      grid.appendChild(empty);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++){
+      const dateObj = new Date(viewYear, viewMonth, d);
+      const key = fmtKey(dateObj);
+      const cell = document.createElement('div');
+      cell.className = 'dtc-cell';
+      if (key === todayKey) cell.classList.add('dtc-today');
+      if (key === selectedKey) cell.classList.add('dtc-selected');
+
+      const num = document.createElement('div');
+      num.className = 'dtc-num';
+      num.textContent = d;
+      cell.appendChild(num);
+
+      const dots = document.createElement('div');
+      dots.className = 'dtc-dots';
+      const tasks = loadTasks(key);
+      tasks.slice(0, 6).forEach(t => {
+        const dot = document.createElement('div');
+        dot.className = 'dtc-dot' + (t.done ? ' done' : '');
+        dots.appendChild(dot);
+      });
+      cell.appendChild(dots);
+
+      cell.addEventListener('click', () => {
+        selectedKey = key;
+        renderGrid();
+        renderPanel();
+      });
+      grid.appendChild(cell);
+    }
+  }
+
+  function renderPanel(){
+    const parts = selectedKey.split('-');
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const label = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) + (selectedKey === todayKey ? ' · today' : '');
+    document.getElementById('dtc-panel-date').textContent = label;
+
+    const listEl = document.getElementById('dtc-tasklist');
+    listEl.innerHTML = '';
+    const tasks = loadTasks(selectedKey);
+
+    if (tasks.length === 0){
+      const msg = document.createElement('div');
+      msg.className = 'dtc-empty-msg';
+      msg.textContent = 'No tasks yet for this day.';
+      listEl.appendChild(msg);
+    }
+
+    const order = tasks.map((t, i) => i).sort((a, b) => {
+      const ta = tasks[a].startTime || '';
+      const tb = tasks[b].startTime || '';
+      if (ta && tb) return ta < tb ? -1 : ta > tb ? 1 : 0;
+      if (ta) return -1;
+      if (tb) return 1;
+      return 0;
+    });
+
+    order.forEach(idx => {
+      const t = tasks[idx];
+      const row = document.createElement('div');
+      row.className = 'dtc-row';
+
+      const check = document.createElement('div');
+      check.className = 'dtc-check' + (t.done ? ' on' : '');
+      check.innerHTML = t.done ? '<i class="ti ti-check"></i>' : '';
+      check.addEventListener('click', () => {
+        tasks[idx].done = !tasks[idx].done;
+        saveTasks(selectedKey, tasks);
+        renderPanel();
+        renderGrid();
+      });
+
+      const time = document.createElement('div');
+      time.className = 'dtc-time' + (t.done ? ' done' : '');
+      time.textContent = formatTimeRange(t.startTime, t.endTime);
+
+      const text = document.createElement('div');
+      text.className = 'dtc-text' + (t.done ? ' done' : '');
+      text.textContent = t.text;
+
+      const del = document.createElement('button');
+      del.className = 'dtc-del';
+      del.innerHTML = '<i class="ti ti-x"></i>';
+      del.addEventListener('click', () => {
+        tasks.splice(idx, 1);
+        saveTasks(selectedKey, tasks);
+        renderPanel();
+        renderGrid();
+      });
+
+      row.appendChild(check);
+      if (t.startTime || t.endTime) row.appendChild(time);
+      row.appendChild(text);
+      row.appendChild(del);
+      listEl.appendChild(row);
+    });
+  }
+
+  function formatTime(t){
+    const [h, m] = t.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return h12 + ':' + String(m).padStart(2, '0') + ' ' + period;
+  }
+
+  function formatTimeRange(start, end){
+    if (start && end) return formatTime(start) + ' \u2013 ' + formatTime(end);
+    if (start) return formatTime(start);
+    if (end) return 'until ' + formatTime(end);
+    return '';
+  }
+
+  document.getElementById('dtc-prev').addEventListener('click', () => {
+    viewMonth--;
+    if (viewMonth < 0){ viewMonth = 11; viewYear--; }
+    renderGrid();
+  });
+  document.getElementById('dtc-next').addEventListener('click', () => {
+    viewMonth++;
+    if (viewMonth > 11){ viewMonth = 0; viewYear++; }
+    renderGrid();
+  });
+  document.getElementById('dtc-today-btn').addEventListener('click', () => {
+    viewYear = today.getFullYear();
+    viewMonth = today.getMonth();
+    selectedKey = todayKey;
+    renderGrid();
+    renderPanel();
+  });
+
+  document.getElementById('dtc-addbtn').addEventListener('click', addTask);
+  document.getElementById('dtc-newtask').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addTask();
+  });
+
+  function addTask(){
+    const input = document.getElementById('dtc-newtask');
+    const startInput = document.getElementById('dtc-newtime-start');
+    const endInput = document.getElementById('dtc-newtime-end');
+    const val = input.value.trim();
+    if (!val) return;
+    const tasks = loadTasks(selectedKey);
+    tasks.push({ text: val, done: false, startTime: startInput.value || '', endTime: endInput.value || '' });
+    saveTasks(selectedKey, tasks);
+    input.value = '';
+    startInput.value = '';
+    endInput.value = '';
+    renderPanel();
+    renderGrid();
+  }
+
+  renderGrid();
+  renderPanel();
+})();
+</script>
+</body>
+</html>
