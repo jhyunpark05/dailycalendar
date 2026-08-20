@@ -103,6 +103,7 @@
       <div class="dtc-error" id="dtc-add-error"></div>
     </div>
     <div class="dtc-addsection-note" id="dtc-addsection-note">Finish editing the task above to add a new one.</div>
+    <div class="dtc-addsection-note" id="dtc-pastday-note">This day has passed, so tasks can no longer be added.</div>
   </div>
 </div>
 <script>
@@ -366,12 +367,23 @@
 
     const addSection = document.getElementById('dtc-addsection');
     const addNote = document.getElementById('dtc-addsection-note');
-    if (editingIndex !== null){
-      addSection.classList.add('dtc-disabled');
-      addNote.classList.add('dtc-show');
-    } else {
-      addSection.classList.remove('dtc-disabled');
+    const pastNote = document.getElementById('dtc-pastday-note');
+    const isPastDay = selectedKey < todayKey;
+
+    if (isPastDay){
+      addSection.style.display = 'none';
       addNote.classList.remove('dtc-show');
+      pastNote.classList.add('dtc-show');
+    } else {
+      addSection.style.display = '';
+      pastNote.classList.remove('dtc-show');
+      if (editingIndex !== null){
+        addSection.classList.add('dtc-disabled');
+        addNote.classList.add('dtc-show');
+      } else {
+        addSection.classList.remove('dtc-disabled');
+        addNote.classList.remove('dtc-show');
+      }
     }
   }
 
@@ -427,15 +439,39 @@
     const actions = document.createElement('div');
     actions.className = 'dtc-editform-actions';
 
+    const editError = document.createElement('div');
+    editError.className = 'dtc-error';
+
+    function checkEditTimeLive(){
+      editError.classList.remove('dtc-show');
+      const startVal = readTimeSelects(editStartRefs);
+      const endVal = readTimeSelects(editEndRefs);
+      if (startVal && endVal && timeToMinutes(endVal) <= timeToMinutes(startVal)){
+        editError.textContent = "That time doesn't make sense... learn some maths";
+        editError.classList.add('dtc-show');
+      }
+    }
+    editStartRefs.hour.addEventListener('change', checkEditTimeLive);
+    editStartRefs.min.addEventListener('change', checkEditTimeLive);
+    editEndRefs.hour.addEventListener('change', checkEditTimeLive);
+    editEndRefs.min.addEventListener('change', checkEditTimeLive);
+
     const saveBtn = document.createElement('button');
     saveBtn.className = 'dtc-addbtn';
     saveBtn.textContent = 'Save';
     saveBtn.addEventListener('click', () => {
       const val = textInput.value.trim();
       if (!val) return;
+      const startVal = readTimeSelects(editStartRefs);
+      const endVal = readTimeSelects(editEndRefs);
+      if (startVal && endVal && timeToMinutes(endVal) <= timeToMinutes(startVal)){
+        editError.textContent = "That time doesn't make sense... learn some maths";
+        editError.classList.add('dtc-show');
+        return;
+      }
       tasks[idx].text = val;
-      tasks[idx].startTime = readTimeSelects(editStartRefs);
-      tasks[idx].endTime = readTimeSelects(editEndRefs);
+      tasks[idx].startTime = startVal;
+      tasks[idx].endTime = endVal;
       saveTasks(selectedKey, tasks);
       editingIndex = null;
       renderPanel();
@@ -453,6 +489,7 @@
     actions.appendChild(saveBtn);
     actions.appendChild(cancelBtn);
     form.appendChild(actions);
+    form.appendChild(editError);
 
     row.appendChild(form);
 
@@ -503,10 +540,25 @@
     if (e.key === 'Enter') addTask();
   });
   document.getElementById('dtc-newtask').addEventListener('input', clearAddError);
-  newStartRefs.hour.addEventListener('change', clearAddError);
-  newStartRefs.min.addEventListener('change', clearAddError);
-  newEndRefs.hour.addEventListener('change', clearAddError);
-  newEndRefs.min.addEventListener('change', clearAddError);
+  newStartRefs.hour.addEventListener('change', checkAddTimeLive);
+  newStartRefs.min.addEventListener('change', checkAddTimeLive);
+  newEndRefs.hour.addEventListener('change', checkAddTimeLive);
+  newEndRefs.min.addEventListener('change', checkAddTimeLive);
+
+  function checkAddTimeLive(){
+    clearAddError();
+    if (!newStartRefs.hour.value || !newStartRefs.min.value || !newEndRefs.hour.value || !newEndRefs.min.value) return;
+    const startVal = readTimeSelects(newStartRefs);
+    const endVal = readTimeSelects(newEndRefs);
+    if (timeToMinutes(endVal) <= timeToMinutes(startVal)){
+      showAddError(null, "That time doesn't make sense... learn some maths");
+    }
+  }
+
+  function timeToMinutes(t){
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
 
   function joinWithAnd(items){
     if (items.length === 1) return items[0];
@@ -514,9 +566,9 @@
     return items.slice(0, -1).join(', ') + ', and ' + items[items.length - 1];
   }
 
-  function showAddError(missingParts){
+  function showAddError(missingParts, customMessage){
     const errorEl = document.getElementById('dtc-add-error');
-    errorEl.textContent = 'You forgot to add the ' + joinWithAnd(missingParts) + ' noob!';
+    errorEl.textContent = customMessage ? customMessage : ('You forgot to add the ' + joinWithAnd(missingParts) + ' noob!');
     errorEl.classList.add('dtc-show');
   }
 
@@ -541,14 +593,21 @@
       showAddError(missing);
       return;
     }
+
+    const startVal = readTimeSelects(newStartRefs);
+    const endVal = readTimeSelects(newEndRefs);
+    if (timeToMinutes(endVal) <= timeToMinutes(startVal)){
+      showAddError(null, "That time doesn't make sense... learn some maths");
+      return;
+    }
     clearAddError();
 
     const tasks = loadTasks(selectedKey);
     tasks.push({
       text: val,
       done: false,
-      startTime: readTimeSelects(newStartRefs),
-      endTime: readTimeSelects(newEndRefs)
+      startTime: startVal,
+      endTime: endVal
     });
     saveTasks(selectedKey, tasks);
     input.value = '';
