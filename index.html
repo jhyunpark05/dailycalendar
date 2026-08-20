@@ -33,23 +33,41 @@
   .dtc-row:last-of-type { border-bottom: none; }
   .dtc-check { width: 17px; height: 17px; border-radius: 5px; border: 1.5px solid #C9BFA9; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #fff; }
   .dtc-check.on { background: #2F5D50; border-color: #2F5D50; }
-  .dtc-check i { font-size: 12px; color: #fff; }
-  .dtc-text { flex: 1; font-size: 14px; }
+  .dtc-check svg { width: 11px; height: 11px; }
+  .dtc-text { flex: 1; font-size: 14px; cursor: pointer; }
   .dtc-text.done { color: #B4AC9B; text-decoration: line-through; }
-  .dtc-time { font-size: 12px; color: #8A8478; min-width: 118px; flex-shrink: 0; }
+  .dtc-time { font-size: 12px; color: #8A8478; min-width: 118px; flex-shrink: 0; cursor: pointer; }
   .dtc-time.done { color: #C9BFA9; }
-  .dtc-del { background: none; border: none; cursor: pointer; color: #C9BFA9; font-size: 15px; padding: 4px; }
-  .dtc-del:hover { color: #C1512C; }
-  .dtc-addrow { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .dtc-iconbtn { background: none; border: none; cursor: pointer; color: #B4AC9B; padding: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+  .dtc-iconbtn svg { width: 15px; height: 15px; }
+  .dtc-iconbtn:hover { color: #2F5D50; background: #EFE9DD; }
+  .dtc-iconbtn.dtc-del:hover { color: #C1512C; }
+  .dtc-timegroup { display: flex; align-items: center; gap: 4px; }
+  .dtc-timegroup label { font-size: 11px; color: #8A8478; margin-right: 2px; }
+  .dtc-addrow { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+  .dtc-addrow-times { display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+  .dtc-addsection { transition: opacity .12s; }
+  .dtc-addsection.dtc-disabled { opacity: 0.4; pointer-events: none; }
+  .dtc-addsection-note { font-size: 12px; color: #8A8478; margin-top: 10px; display: none; }
+  .dtc-addsection-note.dtc-show { display: block; }
   .dtc-input { flex: 1; min-width: 140px; border: 1px solid #EAE3D5; border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; }
-  .dtc-timeinput { width: 108px; border: 1px solid #EAE3D5; border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; flex-shrink: 0; }
+  select.dtc-timeselect { border: 1px solid #EAE3D5; border-radius: 8px; padding: 8px 6px; font-size: 13px; font-family: inherit; background: #fff; }
   .dtc-timesep { align-self: center; color: #8A8478; font-size: 13px; }
-  .dtc-input:focus, .dtc-timeinput:focus { outline: none; border-color: #2F5D50; }
+  .dtc-input:focus, select.dtc-timeselect:focus { outline: none; border-color: #2F5D50; }
   .dtc-addbtn { border: none; background: #2F5D50; color: #FAF7F1; border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
   .dtc-addbtn:hover { background: #26493F; }
+  .dtc-cancelbtn { border: 1px solid #EAE3D5; background: #fff; color: #8A8478; border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .dtc-cancelbtn:hover { background: #F2EDE2; }
   .dtc-empty-msg { font-size: 13px; color: #8A8478; padding: 4px 0 8px; }
+  .dtc-error { font-size: 13px; color: #A32D2D; background: #FCEBEB; border: 1px solid #F0999A; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: none; }
+  .dtc-error.dtc-show { display: block; }
+  .dtc-editrow { background: #FBF6EA; border: 1px solid #E4C77F; border-radius: 10px; padding: 4px 12px; margin: 4px 0; }
+  .dtc-editrow:last-of-type { border-bottom: 1px solid #E4C77F; }
+  .dtc-editlabel { font-size: 11px; font-weight: 500; color: #96751F; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 10px; }
+  .dtc-editform { flex: 1; padding: 6px 0 12px; }
+  .dtc-editform .dtc-input { width: 100%; margin-bottom: 10px; }
+  .dtc-editform-actions { display: flex; gap: 8px; margin-top: 10px; }
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 </head>
 <body>
 <div class="dtc">
@@ -67,13 +85,24 @@
   <div class="dtc-panel">
     <div class="dtc-panel-date" id="dtc-panel-date"></div>
     <div id="dtc-tasklist"></div>
-    <div class="dtc-addrow">
-      <input class="dtc-timeinput" id="dtc-newtime-start" type="time" />
-      <span class="dtc-timesep">&ndash;</span>
-      <input class="dtc-timeinput" id="dtc-newtime-end" type="time" />
-      <input class="dtc-input" id="dtc-newtask" placeholder="Add a task for this day" />
-      <button class="dtc-addbtn" id="dtc-addbtn">Add</button>
+    <div id="dtc-addsection" class="dtc-addsection">
+      <div class="dtc-addrow-times">
+        <div class="dtc-timegroup">
+          <label>Start</label>
+          <span id="dtc-newtime-start-mount"></span>
+        </div>
+        <div class="dtc-timegroup">
+          <label>End</label>
+          <span id="dtc-newtime-end-mount"></span>
+        </div>
+      </div>
+      <div class="dtc-addrow">
+        <input class="dtc-input" id="dtc-newtask" placeholder="Add a task for this day" />
+        <button class="dtc-addbtn" id="dtc-addbtn">Add</button>
+      </div>
+      <div class="dtc-error" id="dtc-add-error"></div>
     </div>
+    <div class="dtc-addsection-note" id="dtc-addsection-note">Finish editing the task above to add a new one.</div>
   </div>
 </div>
 <script>
@@ -86,6 +115,7 @@
   let viewMonth = today.getMonth();
   let selectedKey = todayKey;
   let taskCache = {};
+  let editingIndex = null;
 
   function fmtKey(d){
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -108,6 +138,84 @@
     taskCache[key] = tasks;
     try { localStorage.setItem('dtc-tasks:' + key, JSON.stringify(tasks)); } catch(e){}
   }
+
+  // ---- time dropdown helpers ----
+  function makeTimeSelects(){
+    const wrap = document.createElement('div');
+    wrap.style.display = 'flex';
+    wrap.style.gap = '4px';
+
+    const hour = document.createElement('select');
+    hour.className = 'dtc-timeselect';
+    const blankH = document.createElement('option');
+    blankH.value = '';
+    blankH.textContent = '--';
+    hour.appendChild(blankH);
+    for (let h = 1; h <= 12; h++){
+      const opt = document.createElement('option');
+      opt.value = String(h);
+      opt.textContent = String(h);
+      hour.appendChild(opt);
+    }
+
+    const min = document.createElement('select');
+    min.className = 'dtc-timeselect';
+    const blankM = document.createElement('option');
+    blankM.value = '';
+    blankM.textContent = '--';
+    min.appendChild(blankM);
+    ['00','15','30','45'].forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      min.appendChild(opt);
+    });
+
+    const ampm = document.createElement('select');
+    ampm.className = 'dtc-timeselect';
+    ['AM','PM'].forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      ampm.appendChild(opt);
+    });
+
+    wrap.appendChild(hour);
+    wrap.appendChild(min);
+    wrap.appendChild(ampm);
+    return { el: wrap, hour: hour, min: min, ampm: ampm };
+  }
+
+  function readTimeSelects(refs){
+    if (!refs.hour.value || !refs.min.value) return '';
+    let h = parseInt(refs.hour.value, 10);
+    const ampm = refs.ampm.value;
+    if (ampm === 'AM'){ if (h === 12) h = 0; }
+    else { if (h !== 12) h += 12; }
+    return String(h).padStart(2,'0') + ':' + refs.min.value;
+  }
+
+  function setTimeSelects(refs, value){
+    if (!value){
+      refs.hour.value = '';
+      refs.min.value = '';
+      refs.ampm.value = 'AM';
+      return;
+    }
+    const [hStr, mStr] = value.split(':');
+    let h = parseInt(hStr, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    let h12 = h % 12;
+    if (h12 === 0) h12 = 12;
+    refs.hour.value = String(h12);
+    refs.min.value = mStr;
+    refs.ampm.value = ampm;
+  }
+
+  const newStartRefs = makeTimeSelects();
+  const newEndRefs = makeTimeSelects();
+  document.getElementById('dtc-newtime-start-mount').appendChild(newStartRefs.el);
+  document.getElementById('dtc-newtime-end-mount').appendChild(newEndRefs.el);
 
   const dowRow = document.getElementById('dtc-dow-row');
   dowNames.forEach(n => {
@@ -155,6 +263,8 @@
 
       cell.addEventListener('click', () => {
         selectedKey = key;
+        editingIndex = null;
+        clearAddError();
         renderGrid();
         renderPanel();
       });
@@ -190,12 +300,18 @@
 
     order.forEach(idx => {
       const t = tasks[idx];
+
+      if (editingIndex === idx){
+        listEl.appendChild(buildEditRow(tasks, idx));
+        return;
+      }
+
       const row = document.createElement('div');
       row.className = 'dtc-row';
 
       const check = document.createElement('div');
       check.className = 'dtc-check' + (t.done ? ' on' : '');
-      check.innerHTML = t.done ? '<i class="ti ti-check"></i>' : '';
+      check.innerHTML = t.done ? '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : '';
       check.addEventListener('click', () => {
         tasks[idx].done = !tasks[idx].done;
         saveTasks(selectedKey, tasks);
@@ -206,17 +322,36 @@
       const time = document.createElement('div');
       time.className = 'dtc-time' + (t.done ? ' done' : '');
       time.textContent = formatTimeRange(t.startTime, t.endTime);
+      time.addEventListener('click', () => {
+        editingIndex = idx;
+        renderPanel();
+      });
 
       const text = document.createElement('div');
       text.className = 'dtc-text' + (t.done ? ' done' : '');
       text.textContent = t.text;
+      text.addEventListener('click', () => {
+        editingIndex = idx;
+        renderPanel();
+      });
+
+      const edit = document.createElement('button');
+      edit.className = 'dtc-iconbtn';
+      edit.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="M15 5l4 4"></path></svg>';
+      edit.setAttribute('aria-label', 'Edit task');
+      edit.addEventListener('click', () => {
+        editingIndex = idx;
+        renderPanel();
+      });
 
       const del = document.createElement('button');
-      del.className = 'dtc-del';
-      del.innerHTML = '<i class="ti ti-x"></i>';
+      del.className = 'dtc-iconbtn dtc-del';
+      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
+      del.setAttribute('aria-label', 'Delete task');
       del.addEventListener('click', () => {
         tasks.splice(idx, 1);
         saveTasks(selectedKey, tasks);
+        editingIndex = null;
         renderPanel();
         renderGrid();
       });
@@ -224,9 +359,110 @@
       row.appendChild(check);
       if (t.startTime || t.endTime) row.appendChild(time);
       row.appendChild(text);
+      row.appendChild(edit);
       row.appendChild(del);
       listEl.appendChild(row);
     });
+
+    const addSection = document.getElementById('dtc-addsection');
+    const addNote = document.getElementById('dtc-addsection-note');
+    if (editingIndex !== null){
+      addSection.classList.add('dtc-disabled');
+      addNote.classList.add('dtc-show');
+    } else {
+      addSection.classList.remove('dtc-disabled');
+      addNote.classList.remove('dtc-show');
+    }
+  }
+
+  function buildEditRow(tasks, idx){
+    const t = tasks[idx];
+    const row = document.createElement('div');
+    row.className = 'dtc-row dtc-editrow';
+
+    const form = document.createElement('div');
+    form.className = 'dtc-editform';
+
+    const label = document.createElement('div');
+    label.className = 'dtc-editlabel';
+    label.textContent = 'Editing task';
+    form.appendChild(label);
+
+    const textInput = document.createElement('input');
+    textInput.className = 'dtc-input';
+    textInput.value = t.text;
+    form.appendChild(textInput);
+
+    const timesWrap = document.createElement('div');
+    timesWrap.className = 'dtc-addrow-times';
+    timesWrap.style.marginTop = '0';
+
+    const startGroup = document.createElement('div');
+    startGroup.className = 'dtc-timegroup';
+    const startLabel = document.createElement('label');
+    startLabel.textContent = 'Start';
+    const startMount = document.createElement('span');
+    startGroup.appendChild(startLabel);
+    startGroup.appendChild(startMount);
+
+    const endGroup = document.createElement('div');
+    endGroup.className = 'dtc-timegroup';
+    const endLabel = document.createElement('label');
+    endLabel.textContent = 'End';
+    const endMount = document.createElement('span');
+    endGroup.appendChild(endLabel);
+    endGroup.appendChild(endMount);
+
+    timesWrap.appendChild(startGroup);
+    timesWrap.appendChild(endGroup);
+    form.appendChild(timesWrap);
+
+    const editStartRefs = makeTimeSelects();
+    const editEndRefs = makeTimeSelects();
+    startMount.appendChild(editStartRefs.el);
+    endMount.appendChild(editEndRefs.el);
+    setTimeSelects(editStartRefs, t.startTime || '');
+    setTimeSelects(editEndRefs, t.endTime || '');
+
+    const actions = document.createElement('div');
+    actions.className = 'dtc-editform-actions';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'dtc-addbtn';
+    saveBtn.textContent = 'Save';
+    saveBtn.addEventListener('click', () => {
+      const val = textInput.value.trim();
+      if (!val) return;
+      tasks[idx].text = val;
+      tasks[idx].startTime = readTimeSelects(editStartRefs);
+      tasks[idx].endTime = readTimeSelects(editEndRefs);
+      saveTasks(selectedKey, tasks);
+      editingIndex = null;
+      renderPanel();
+      renderGrid();
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'dtc-cancelbtn';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => {
+      editingIndex = null;
+      renderPanel();
+    });
+
+    actions.appendChild(saveBtn);
+    actions.appendChild(cancelBtn);
+    form.appendChild(actions);
+
+    row.appendChild(form);
+
+    textInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') saveBtn.click();
+      if (e.key === 'Escape') cancelBtn.click();
+    });
+    setTimeout(() => { textInput.focus(); textInput.select(); }, 0);
+
+    return row;
   }
 
   function formatTime(t){
@@ -257,6 +493,7 @@
     viewYear = today.getFullYear();
     viewMonth = today.getMonth();
     selectedKey = todayKey;
+    editingIndex = null;
     renderGrid();
     renderPanel();
   });
@@ -265,19 +502,58 @@
   document.getElementById('dtc-newtask').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') addTask();
   });
+  document.getElementById('dtc-newtask').addEventListener('input', clearAddError);
+  newStartRefs.hour.addEventListener('change', clearAddError);
+  newStartRefs.min.addEventListener('change', clearAddError);
+  newEndRefs.hour.addEventListener('change', clearAddError);
+  newEndRefs.min.addEventListener('change', clearAddError);
+
+  function joinWithAnd(items){
+    if (items.length === 1) return items[0];
+    if (items.length === 2) return items[0] + ' and ' + items[1];
+    return items.slice(0, -1).join(', ') + ', and ' + items[items.length - 1];
+  }
+
+  function showAddError(missingParts){
+    const errorEl = document.getElementById('dtc-add-error');
+    errorEl.textContent = 'You forgot to add the ' + joinWithAnd(missingParts) + ' noob!';
+    errorEl.classList.add('dtc-show');
+  }
+
+  function clearAddError(){
+    const errorEl = document.getElementById('dtc-add-error');
+    errorEl.textContent = '';
+    errorEl.classList.remove('dtc-show');
+  }
 
   function addTask(){
     const input = document.getElementById('dtc-newtask');
-    const startInput = document.getElementById('dtc-newtime-start');
-    const endInput = document.getElementById('dtc-newtime-end');
     const val = input.value.trim();
-    if (!val) return;
+
+    const missing = [];
+    if (!val) missing.push('task');
+    if (!newStartRefs.hour.value) missing.push('start hour');
+    if (!newStartRefs.min.value) missing.push('start minutes');
+    if (!newEndRefs.hour.value) missing.push('end hour');
+    if (!newEndRefs.min.value) missing.push('end minutes');
+
+    if (missing.length > 0){
+      showAddError(missing);
+      return;
+    }
+    clearAddError();
+
     const tasks = loadTasks(selectedKey);
-    tasks.push({ text: val, done: false, startTime: startInput.value || '', endTime: endInput.value || '' });
+    tasks.push({
+      text: val,
+      done: false,
+      startTime: readTimeSelects(newStartRefs),
+      endTime: readTimeSelects(newEndRefs)
+    });
     saveTasks(selectedKey, tasks);
     input.value = '';
-    startInput.value = '';
-    endInput.value = '';
+    setTimeSelects(newStartRefs, '');
+    setTimeSelects(newEndRefs, '');
     renderPanel();
     renderGrid();
   }
