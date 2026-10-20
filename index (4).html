@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CALENDAR OF DOOM</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
+  body { background: #FAF7F1; margin: 0; padding: 32px 16px; }
+  .dtc { font-family: 'Inter', sans-serif; color: #262420; max-width: 640px; margin: 0 auto; }
+  .dtc * { box-sizing: border-box; }
+  .dtc-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
+  .dtc-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 26px; letter-spacing: -0.01em; }
+  .dtc-navbtn { border: none; background: transparent; cursor: pointer; color: #8A8478; padding: 6px 10px; border-radius: 8px; font-size: 15px; }
+  .dtc-navbtn:hover { background: #EFE9DD; color: #262420; }
+  .dtc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .dtc-dow { text-align: center; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #8A8478; padding-bottom: 6px; }
+  .dtc-cell { position: relative; min-height: 96px; min-width: 0; overflow: hidden; border-radius: 10px; border: 1px solid #EAE3D5; background: #FFFFFF; cursor: pointer; padding: 6px; display: flex; flex-direction: column; justify-content: flex-start; gap: 4px; transition: border-color .12s, background .12s; }
+  .dtc-cell:hover { border-color: #C9BFA9; }
+  .dtc-cell.dtc-empty { border: none; background: transparent; cursor: default; }
+  .dtc-cell.dtc-today { border-color: #2F5D50; box-shadow: inset 0 0 0 1px #2F5D50; }
+  .dtc-cell.dtc-selected { background: #2F5D50; border-color: #2F5D50; }
+  .dtc-cell.dtc-selected .dtc-num { color: #FAF7F1; }
+  .dtc-num { font-size: 13px; font-weight: 500; color: #262420; padding-left: 2px; }
+  .dtc-chips { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .dtc-chip { display: flex; gap: 3px; align-items: baseline; font-size: 10px; line-height: 1.3; padding: 2px 4px; border-radius: 4px; background: #FFFFFF; color: #000000; overflow: hidden; white-space: nowrap; }
+  .dtc-chip .dtc-chip-time { font-weight: 600; flex-shrink: 0; }
+  .dtc-chip .dtc-chip-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .dtc-chip.done .dtc-chip-text { text-decoration: line-through; }
+  .dtc-chip-more { font-size: 10px; color: #8A8478; padding: 0 4px; }
+  .dtc-cell.dtc-selected .dtc-chip-more { color: #CFE0DA; }
+  .dtc-dots { display: none; gap: 3px; flex-wrap: wrap; }
+  .dtc-dot { width: 5px; height: 5px; border-radius: 50%; background: #C1512C; }
+  .dtc-dot.done { background: #B4AC9B; }
+  .dtc-cell.dtc-selected .dtc-dot { background: #E7DFCB; }
+  .dtc-cell.dtc-selected .dtc-dot.done { background: #6E8A80; }
+  @media (max-width: 560px) {
+    .dtc-chips { display: none; }
+    .dtc-dots { display: flex; }
+    .dtc-cell { min-height: 56px; }
+  }
+  .dtc-panel { margin-top: 22px; background: #FFFFFF; border: 1px solid #EAE3D5; border-radius: 12px; padding: 18px 20px; }
+  .dtc-panel-date { font-family: 'Fraunces', serif; font-weight: 500; font-size: 17px; margin-bottom: 12px; }
+  .dtc-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #F2EDE2; }
+  .dtc-row:last-of-type { border-bottom: none; }
+  .dtc-check { width: 17px; height: 17px; border-radius: 5px; border: 1.5px solid #C9BFA9; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #fff; }
+  .dtc-check.on { background: #2F5D50; border-color: #2F5D50; }
+  .dtc-check svg { width: 11px; height: 11px; }
+  .dtc-text { flex: 1; font-size: 14px; cursor: pointer; }
+  .dtc-text.done { color: #B4AC9B; text-decoration: line-through; }
+  .dtc-time { font-size: 12px; color: #8A8478; min-width: 118px; flex-shrink: 0; cursor: pointer; }
+  .dtc-time.done { color: #C9BFA9; }
+  .dtc-iconbtn { background: none; border: none; cursor: pointer; color: #B4AC9B; padding: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+  .dtc-iconbtn svg { width: 15px; height: 15px; }
+  .dtc-iconbtn:hover { color: #2F5D50; background: #EFE9DD; }
+  .dtc-iconbtn.dtc-del:hover { color: #C1512C; }
+  .dtc-timegroup { display: flex; align-items: center; gap: 4px; }
+  .dtc-timegroup label { font-size: 11px; color: #8A8478; margin-right: 2px; }
+  .dtc-addrow { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+  .dtc-addrow-times { display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+  .dtc-addsection { transition: opacity .12s; }
+  .dtc-addsection.dtc-disabled { opacity: 0.4; pointer-events: none; }
+  .dtc-addsection-note { font-size: 12px; color: #8A8478; margin-top: 10px; display: none; }
+  .dtc-addsection-note.dtc-show { display: block; }
+  .dtc-input { flex: 1; min-width: 140px; border: 1px solid #EAE3D5; border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; }
+  select.dtc-timeselect { border: 1px solid #EAE3D5; border-radius: 8px; padding: 8px 6px; font-size: 13px; font-family: inherit; background: #fff; }
+  .dtc-timesep { align-self: center; color: #8A8478; font-size: 13px; }
+  .dtc-input:focus, select.dtc-timeselect:focus { outline: none; border-color: #2F5D50; }
+  .dtc-addbtn { border: none; background: #2F5D50; color: #FAF7F1; border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .dtc-addbtn:hover { background: #26493F; }
+  .dtc-cancelbtn { border: 1px solid #EAE3D5; background: #fff; color: #8A8478; border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .dtc-cancelbtn:hover { background: #F2EDE2; }
+  .dtc-empty-msg { font-size: 13px; color: #8A8478; padding: 4px 0 8px; }
+  .dtc-error { font-size: 13px; color: #A32D2D; background: #FCEBEB; border: 1px solid #F0999A; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: none; }
+  .dtc-error.dtc-show { display: block; }
+  .dtc-share { margin-top: 16px; background: #FFFFFF; border: 1px solid #EAE3D5; border-radius: 12px; padding: 16px 20px; }
+  .dtc-share-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 15px; margin-bottom: 4px; }
+  .dtc-share-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .dtc-share-note { font-size: 12px; color: #8A8478; margin-top: 10px; min-height: 16px; }
+  .dtc-editrow { background: #FBF6EA; border: 1px solid #E4C77F; border-radius: 10px; padding: 4px 12px; margin: 4px 0; }
+  .dtc-editrow:last-of-type { border-bottom: 1px solid #E4C77F; }
+  .dtc-editlabel { font-size: 11px; font-weight: 500; color: #96751F; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 10px; }
+  .dtc-editform { flex: 1; padding: 6px 0 12px; }
+  .dtc-editform .dtc-input { width: 100%; margin-bottom: 10px; }
+  .dtc-editform-actions { display: flex; gap: 8px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="dtc">
+  <h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">Daily task calendar to track tasks by day</h2>
+  <div class="dtc-head">
+    <div class="dtc-title" id="dtc-month"></div>
+    <div>
+      <button class="dtc-navbtn" id="dtc-prev">&larr;</button>
+      <button class="dtc-navbtn" id="dtc-today-btn">today</button>
+      <button class="dtc-navbtn" id="dtc-next">&rarr;</button>
+    </div>
+  </div>
+  <div class="dtc-grid" id="dtc-dow-row"></div>
+  <div class="dtc-grid" id="dtc-grid" style="margin-top:6px;"></div>
+  <div class="dtc-panel">
+    <div class="dtc-panel-date" id="dtc-panel-date"></div>
+    <div id="dtc-tasklist"></div>
+    <div id="dtc-addsection" class="dtc-addsection">
+      <div class="dtc-addrow-times">
+        <div class="dtc-timegroup">
+          <label>Start</label>
+          <span id="dtc-newtime-start-mount"></span>
+        </div>
+        <div class="dtc-timegroup">
+          <label>End</label>
+          <span id="dtc-newtime-end-mount"></span>
+        </div>
+      </div>
+      <div class="dtc-addrow">
+        <input class="dtc-input" id="dtc-newtask" placeholder="Add a task for this day" />
+        <button class="dtc-addbtn" id="dtc-addbtn">Add</button>
+      </div>
+      <div class="dtc-error" id="dtc-add-error"></div>
+    </div>
+    <div class="dtc-addsection-note" id="dtc-addsection-note">Finish editing the task above to add a new one.</div>
+    <div class="dtc-addsection-note" id="dtc-pastday-note">This day has passed, so tasks can no longer be added.</div>
+  </div>
+  <div class="dtc-share">
+    <div class="dtc-share-title">Share your calendar</div>
+    <div class="dtc-share-row">
+      <button class="dtc-cancelbtn" id="dtc-export-btn">Export all events to a file</button>
+    </div>
+    <div class="dtc-share-row">
+      <input class="dtc-input" id="dtc-phone" type="tel" placeholder="Phone number, like 555 123 4567" />
+      <button class="dtc-addbtn" id="dtc-text-btn">Text upcoming events</button>
+    </div>
+    <div class="dtc-share-note" id="dtc-share-note"></div>
+  </div>
+</div>
+<script>
+(function(){
+  const dowNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const today = new Date();
+  const todayKey = fmtKey(today);
+  let viewYear = today.getFullYear();
+  let viewMonth = today.getMonth();
+  let selectedKey = todayKey;
+  let taskCache = {};
+  let editingIndex = null;
+
+  function fmtKey(d){
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function loadTasks(key){
+    if (taskCache[key]) return taskCache[key];
+    try {
+      const raw = localStorage.getItem('dtc-tasks:' + key);
+      const val = raw ? JSON.parse(raw) : [];
+      taskCache[key] = val;
+      return val;
+    } catch(e){
+      taskCache[key] = [];
+      return [];
+    }
+  }
+
+  function saveTasks(key, tasks){
+    taskCache[key] = tasks;
+    try { localStorage.setItem('dtc-tasks:' + key, JSON.stringify(tasks)); } catch(e){}
+  }
+
+  // ---- time dropdown helpers ----
+  function makeTimeSelects(){
+    const wrap = document.createElement('div');
+    wrap.style.display = 'flex';
+    wrap.style.gap = '4px';
+
+    const hour = document.createElement('select');
+    hour.className = 'dtc-timeselect';
+    const blankH = document.createElement('option');
+    blankH.value = '';
+    blankH.textContent = '--';
+    hour.appendChild(blankH);
+    for (let h = 1; h <= 12; h++){
+      const opt = document.createElement('option');
+      opt.value = String(h);
+      opt.textContent = String(h);
+      hour.appendChild(opt);
+    }
+
+    const min = document.createElement('select');
+    min.className = 'dtc-timeselect';
+    const blankM = document.createElement('option');
+    blankM.value = '';
+    blankM.textContent = '--';
+    min.appendChild(blankM);
+    ['00','15','30','45'].forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      min.appendChild(opt);
+    });
+
+    const ampm = document.createElement('select');
+    ampm.className = 'dtc-timeselect';
+    ['AM','PM'].forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      ampm.appendChild(opt);
+    });
+
+    hour.addEventListener('change', () => {
+      if (hour.value && !min.value) min.value = '00';
+      if (!hour.value) min.value = '';
+    });
+
+    wrap.appendChild(hour);
+    wrap.appendChild(min);
+    wrap.appendChild(ampm);
+    return { el: wrap, hour: hour, min: min, ampm: ampm };
+  }
+
+  function readTimeSelects(refs){
+    if (!refs.hour.value || !refs.min.value) return '';
+    let h = parseInt(refs.hour.value, 10);
+    const ampm = refs.ampm.value;
+    if (ampm === 'AM'){ if (h === 12) h = 0; }
+    else { if (h !== 12) h += 12; }
+    return String(h).padStart(2,'0') + ':' + refs.min.value;
+  }
+
+  function setTimeSelects(refs, value){
+    if (!value){
+      refs.hour.value = '';
+      refs.min.value = '';
+      refs.ampm.value = 'AM';
+      return;
+    }
+    const [hStr, mStr] = value.split(':');
+    let h = parseInt(hStr, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    let h12 = h % 12;
+    if (h12 === 0) h12 = 12;
+    refs.hour.value = String(h12);
+    refs.min.value = mStr;
+    refs.ampm.value = ampm;
+  }
+
+  const newStartRefs = makeTimeSelects();
+  const newEndRefs = makeTimeSelects();
+  document.getElementById('dtc-newtime-start-mount').appendChild(newStartRefs.el);
+  document.getElementById('dtc-newtime-end-mount').appendChild(newEndRefs.el);
+
+  const dowRow = document.getElementById('dtc-dow-row');
+  dowNames.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'dtc-dow';
+    el.textContent = n;
+    dowRow.appendChild(el);
+  });
+
+  function sortByStart(tasks){
+    return tasks.slice().sort((a, b) => {
+      const ta = a.startTime || '', tb = b.startTime || '';
+      if (ta && tb) return ta < tb ? -1 : ta > tb ? 1 : 0;
+      if (ta) return -1;
+      if (tb) return 1;
+      return 0;
+    });
+  }
+
+  function renderGrid(){
+    document.getElementById('dtc-month').textContent = monthNames[viewMonth] + ' ' + viewYear;
+    const grid = document.getElementById('dtc-grid');
+    grid.innerHTML = '';
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++){
+      const empty = document.createElement('div');
+      empty.className = 'dtc-cell dtc-empty';
+      grid.appendChild(empty);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++){
+      const dateObj = new Date(viewYear, viewMonth, d);
+      const key = fmtKey(dateObj);
+      const cell = document.createElement('div');
+      cell.className = 'dtc-cell';
+      if (key === todayKey) cell.classList.add('dtc-today');
+      if (key === selectedKey) cell.classList.add('dtc-selected');
+
+      const num = document.createElement('div');
+      num.className = 'dtc-num';
+      num.textContent = d;
+      cell.appendChild(num);
+
+      const tasks = loadTasks(key);
+      const sorted = sortByStart(tasks);
+
+      const chips = document.createElement('div');
+      chips.className = 'dtc-chips';
+      const MAX_CHIPS = 3;
+      sorted.slice(0, MAX_CHIPS).forEach(t => {
+        const chip = document.createElement('div');
+        chip.className = 'dtc-chip' + (t.done ? ' done' : '');
+        chip.title = (t.startTime ? formatTimeRange(t.startTime, t.endTime) + ' · ' : '') + t.text;
+        if (t.startTime){
+          const tm = document.createElement('span');
+          tm.className = 'dtc-chip-time';
+          tm.textContent = formatShortTime(t.startTime);
+          chip.appendChild(tm);
+        }
+        const tx = document.createElement('span');
+        tx.className = 'dtc-chip-text';
+        tx.textContent = t.text;
+        chip.appendChild(tx);
+        chips.appendChild(chip);
+      });
+      if (sorted.length > MAX_CHIPS){
+        const more = document.createElement('div');
+        more.className = 'dtc-chip-more';
+        more.textContent = '+' + (sorted.length - MAX_CHIPS) + ' more';
+        chips.appendChild(more);
+      }
+      cell.appendChild(chips);
+
+      const dots = document.createElement('div');
+      dots.className = 'dtc-dots';
+      tasks.slice(0, 6).forEach(t => {
+        const dot = document.createElement('div');
+        dot.className = 'dtc-dot' + (t.done ? ' done' : '');
+        dots.appendChild(dot);
+      });
+      cell.appendChild(dots);
+
+      cell.addEventListener('click', () => {
+        selectedKey = key;
+        editingIndex = null;
+        clearAddError();
+        renderGrid();
+        renderPanel();
+      });
+      grid.appendChild(cell);
+    }
+  }
+
+  function renderPanel(){
+    const parts = selectedKey.split('-');
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const label = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) + (selectedKey === todayKey ? ' · today' : '');
+    document.getElementById('dtc-panel-date').textContent = label;
+
+    const listEl = document.getElementById('dtc-tasklist');
+    listEl.innerHTML = '';
+    const tasks = loadTasks(selectedKey);
+
+    if (tasks.length === 0){
+      const msg = document.createElement('div');
+      msg.className = 'dtc-empty-msg';
+      msg.textContent = 'No tasks yet for this day.';
+      listEl.appendChild(msg);
+    }
+
+    const order = tasks.map((t, i) => i).sort((a, b) => {
+      const ta = tasks[a].startTime || '';
+      const tb = tasks[b].startTime || '';
+      if (ta && tb) return ta < tb ? -1 : ta > tb ? 1 : 0;
+      if (ta) return -1;
+      if (tb) return 1;
+      return 0;
+    });
+
+    order.forEach(idx => {
+      const t = tasks[idx];
+
+      if (editingIndex === idx){
+        listEl.appendChild(buildEditRow(tasks, idx));
+        return;
+      }
+
+      const row = document.createElement('div');
+      row.className = 'dtc-row';
+
+      const check = document.createElement('div');
+      check.className = 'dtc-check' + (t.done ? ' on' : '');
+      check.innerHTML = t.done ? '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : '';
+      check.addEventListener('click', () => {
+        tasks[idx].done = !tasks[idx].done;
+        saveTasks(selectedKey, tasks);
+        renderPanel();
+        renderGrid();
+      });
+
+      const time = document.createElement('div');
+      time.className = 'dtc-time' + (t.done ? ' done' : '');
+      time.textContent = formatTimeRange(t.startTime, t.endTime);
+      time.addEventListener('click', () => {
+        editingIndex = idx;
+        renderPanel();
+      });
+
+      const text = document.createElement('div');
+      text.className = 'dtc-text' + (t.done ? ' done' : '');
+      text.textContent = t.text;
+      text.addEventListener('click', () => {
+        editingIndex = idx;
+        renderPanel();
+      });
+
+      const edit = document.createElement('button');
+      edit.className = 'dtc-iconbtn';
+      edit.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="M15 5l4 4"></path></svg>';
+      edit.setAttribute('aria-label', 'Edit task');
+      edit.addEventListener('click', () => {
+        editingIndex = idx;
+        renderPanel();
+      });
+
+      const del = document.createElement('button');
+      del.className = 'dtc-iconbtn dtc-del';
+      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
+      del.setAttribute('aria-label', 'Delete task');
+      del.addEventListener('click', () => {
+        tasks.splice(idx, 1);
+        saveTasks(selectedKey, tasks);
+        editingIndex = null;
+        renderPanel();
+        renderGrid();
+      });
+
+      row.appendChild(check);
+      if (t.startTime || t.endTime) row.appendChild(time);
+      row.appendChild(text);
+      row.appendChild(edit);
+      row.appendChild(del);
+      listEl.appendChild(row);
+    });
+
+    const addSection = document.getElementById('dtc-addsection');
+    const addNote = document.getElementById('dtc-addsection-note');
+    const pastNote = document.getElementById('dtc-pastday-note');
+    const isPastDay = selectedKey < todayKey;
+
+    if (isPastDay){
+      addSection.style.display = 'none';
+      addNote.classList.remove('dtc-show');
+      pastNote.classList.add('dtc-show');
+    } else {
+      addSection.style.display = '';
+      pastNote.classList.remove('dtc-show');
+      if (editingIndex !== null){
+        addSection.classList.add('dtc-disabled');
+        addNote.classList.add('dtc-show');
+      } else {
+        addSection.classList.remove('dtc-disabled');
+        addNote.classList.remove('dtc-show');
+      }
+    }
+  }
+
+  function buildEditRow(tasks, idx){
+    const t = tasks[idx];
+    const row = document.createElement('div');
+    row.className = 'dtc-row dtc-editrow';
+
+    const form = document.createElement('div');
+    form.className = 'dtc-editform';
+
+    const label = document.createElement('div');
+    label.className = 'dtc-editlabel';
+    label.textContent = 'Editing task';
+    form.appendChild(label);
+
+    const textInput = document.createElement('input');
+    textInput.className = 'dtc-input';
+    textInput.value = t.text;
+    form.appendChild(textInput);
+
+    const timesWrap = document.createElement('div');
+    timesWrap.className = 'dtc-addrow-times';
+    timesWrap.style.marginTop = '0';
+
+    const startGroup = document.createElement('div');
+    startGroup.className = 'dtc-timegroup';
+    const startLabel = document.createElement('label');
+    startLabel.textContent = 'Start';
+    const startMount = document.createElement('span');
+    startGroup.appendChild(startLabel);
+    startGroup.appendChild(startMount);
+
+    const endGroup = document.createElement('div');
+    endGroup.className = 'dtc-timegroup';
+    const endLabel = document.createElement('label');
+    endLabel.textContent = 'End';
+    const endMount = document.createElement('span');
+    endGroup.appendChild(endLabel);
+    endGroup.appendChild(endMount);
+
+    timesWrap.appendChild(startGroup);
+    timesWrap.appendChild(endGroup);
+    form.appendChild(timesWrap);
+
+    const editStartRefs = makeTimeSelects();
+    const editEndRefs = makeTimeSelects();
+    startMount.appendChild(editStartRefs.el);
+    endMount.appendChild(editEndRefs.el);
+    setTimeSelects(editStartRefs, t.startTime || '');
+    setTimeSelects(editEndRefs, t.endTime || '');
+
+    const actions = document.createElement('div');
+    actions.className = 'dtc-editform-actions';
+
+    const editError = document.createElement('div');
+    editError.className = 'dtc-error';
+
+    function checkEditTimeLive(){
+      editError.classList.remove('dtc-show');
+      const startVal = readTimeSelects(editStartRefs);
+      const endVal = readTimeSelects(editEndRefs);
+      if (startVal && endVal && timeToMinutes(endVal) <= timeToMinutes(startVal)){
+        editError.textContent = "That time doesn't make sense... learn some maths";
+        editError.classList.add('dtc-show');
+      }
+    }
+    editStartRefs.hour.addEventListener('change', checkEditTimeLive);
+    editStartRefs.min.addEventListener('change', checkEditTimeLive);
+    editEndRefs.hour.addEventListener('change', checkEditTimeLive);
+    editEndRefs.min.addEventListener('change', checkEditTimeLive);
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'dtc-addbtn';
+    saveBtn.textContent = 'Save';
+    saveBtn.addEventListener('click', () => {
+      const val = textInput.value.trim();
+      if (!val) return;
+      const startVal = readTimeSelects(editStartRefs);
+      const endVal = readTimeSelects(editEndRefs);
+      if (startVal && endVal && timeToMinutes(endVal) <= timeToMinutes(startVal)){
+        editError.textContent = "That time doesn't make sense... learn some maths";
+        editError.classList.add('dtc-show');
+        return;
+      }
+      tasks[idx].text = val;
+      tasks[idx].startTime = startVal;
+      tasks[idx].endTime = endVal;
+      saveTasks(selectedKey, tasks);
+      editingIndex = null;
+      renderPanel();
+      renderGrid();
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'dtc-cancelbtn';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => {
+      editingIndex = null;
+      renderPanel();
+    });
+
+    actions.appendChild(saveBtn);
+    actions.appendChild(cancelBtn);
+    form.appendChild(actions);
+    form.appendChild(editError);
+
+    row.appendChild(form);
+
+    textInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') saveBtn.click();
+      if (e.key === 'Escape') cancelBtn.click();
+    });
+    setTimeout(() => { textInput.focus(); textInput.select(); }, 0);
+
+    return row;
+  }
+
+  function formatTime(t){
+    const [h, m] = t.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return h12 + ':' + String(m).padStart(2, '0') + ' ' + period;
+  }
+
+  function formatShortTime(t){
+    const [h, m] = t.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return h12 + (m ? ':' + String(m).padStart(2, '0') : '') + period;
+  }
+
+  function formatTimeRange(start, end){
+    if (start && end) return formatTime(start) + ' – ' + formatTime(end);
+    if (start) return formatTime(start);
+    if (end) return 'until ' + formatTime(end);
+    return '';
+  }
+
+  document.getElementById('dtc-prev').addEventListener('click', () => {
+    viewMonth--;
+    if (viewMonth < 0){ viewMonth = 11; viewYear--; }
+    renderGrid();
+  });
+  document.getElementById('dtc-next').addEventListener('click', () => {
+    viewMonth++;
+    if (viewMonth > 11){ viewMonth = 0; viewYear++; }
+    renderGrid();
+  });
+  document.getElementById('dtc-today-btn').addEventListener('click', () => {
+    viewYear = today.getFullYear();
+    viewMonth = today.getMonth();
+    selectedKey = todayKey;
+    editingIndex = null;
+    renderGrid();
+    renderPanel();
+  });
+
+  document.getElementById('dtc-addbtn').addEventListener('click', addTask);
+  document.getElementById('dtc-newtask').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addTask();
+  });
+  document.getElementById('dtc-newtask').addEventListener('input', clearAddError);
+  newStartRefs.hour.addEventListener('change', checkAddTimeLive);
+  newStartRefs.min.addEventListener('change', checkAddTimeLive);
+  newEndRefs.hour.addEventListener('change', checkAddTimeLive);
+  newEndRefs.min.addEventListener('change', checkAddTimeLive);
+
+  function checkAddTimeLive(){
+    clearAddError();
+    if (!newStartRefs.hour.value || !newStartRefs.min.value || !newEndRefs.hour.value || !newEndRefs.min.value) return;
+    const startVal = readTimeSelects(newStartRefs);
+    const endVal = readTimeSelects(newEndRefs);
+    if (timeToMinutes(endVal) <= timeToMinutes(startVal)){
+      showAddError(null, "That time doesn't make sense... learn some maths");
+    }
+  }
+
+  function timeToMinutes(t){
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function joinWithAnd(items){
+    if (items.length === 1) return items[0];
+    if (items.length === 2) return items[0] + ' and ' + items[1];
+    return items.slice(0, -1).join(', ') + ', and ' + items[items.length - 1];
+  }
+
+  function showAddError(missingParts, customMessage){
+    const errorEl = document.getElementById('dtc-add-error');
+    errorEl.textContent = customMessage ? customMessage : ('You forgot to add the ' + joinWithAnd(missingParts) + ' noob!');
+    errorEl.classList.add('dtc-show');
+  }
+
+  function clearAddError(){
+    const errorEl = document.getElementById('dtc-add-error');
+    errorEl.textContent = '';
+    errorEl.classList.remove('dtc-show');
+  }
+
+  function addTask(){
+    const input = document.getElementById('dtc-newtask');
+    const val = input.value.trim();
+
+    const missing = [];
+    if (!val) missing.push('task');
+    if (!newStartRefs.hour.value) missing.push('start hour');
+    if (!newStartRefs.min.value) missing.push('start minutes');
+    if (!newEndRefs.hour.value) missing.push('end hour');
+    if (!newEndRefs.min.value) missing.push('end minutes');
+
+    if (missing.length > 0){
+      showAddError(missing);
+      return;
+    }
+
+    const startVal = readTimeSelects(newStartRefs);
+    const endVal = readTimeSelects(newEndRefs);
+    if (timeToMinutes(endVal) <= timeToMinutes(startVal)){
+      showAddError(null, "That time doesn't make sense... learn some maths");
+      return;
+    }
+    clearAddError();
+
+    const tasks = loadTasks(selectedKey);
+    tasks.push({
+      text: val,
+      done: false,
+      startTime: startVal,
+      endTime: endVal
+    });
+    saveTasks(selectedKey, tasks);
+    input.value = '';
+    setTimeSelects(newStartRefs, '');
+    setTimeSelects(newEndRefs, '');
+    renderPanel();
+    renderGrid();
+  }
+
+  // ---- export and text ----
+  function collectDays(onlyUpcoming){
+    const out = [];
+    try {
+      const prefix = 'dtc-tasks:';
+      for (let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if (!k || k.indexOf(prefix) !== 0) continue;
+        const dateKey = k.slice(prefix.length);
+        if (onlyUpcoming && dateKey < todayKey) continue;
+        const tasks = loadTasks(dateKey);
+        if (tasks.length) out.push({ key: dateKey, tasks: sortByStart(tasks) });
+      }
+    } catch(e){}
+    out.sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+    return out;
+  }
+
+  function keyToDate(key){
+    const p = key.split('-');
+    return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+  }
+
+  function buildExportText(days){
+    const lines = ['CALENDAR OF DOOM', 'Exported ' + new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }), ''];
+    days.forEach(day => {
+      lines.push(keyToDate(day.key).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
+      day.tasks.forEach(t => {
+        const time = formatTimeRange(t.startTime, t.endTime);
+        lines.push('  [' + (t.done ? 'x' : ' ') + '] ' + (time ? time + '  ' : '') + t.text);
+      });
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
+
+  function buildTextMessage(days){
+    const lines = ['Calendar of Doom'];
+    days.forEach(day => {
+      lines.push('');
+      lines.push(keyToDate(day.key).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }));
+      day.tasks.forEach(t => {
+        const time = formatTimeRange(t.startTime, t.endTime).replace(/–/g, '-');
+        lines.push('- ' + (time ? time + ' ' : '') + t.text + (t.done ? ' (done)' : ''));
+      });
+    });
+    return lines.join('\n');
+  }
+
+  function setShareNote(msg){
+    document.getElementById('dtc-share-note').textContent = msg;
+  }
+
+  document.getElementById('dtc-export-btn').addEventListener('click', () => {
+    const days = collectDays(false);
+    if (days.length === 0){
+      setShareNote('No events to export yet. Add a task and try again.');
+      return;
+    }
+    const blob = new Blob([buildExportText(days)], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'calendar-of-doom-' + todayKey + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const count = days.reduce((n, d) => n + d.tasks.length, 0);
+    setShareNote('Exported ' + count + ' event' + (count === 1 ? '' : 's') + ' across ' + days.length + ' day' + (days.length === 1 ? '' : 's') + '.');
+  });
+
+  document.getElementById('dtc-text-btn').addEventListener('click', () => {
+    const raw = document.getElementById('dtc-phone').value.trim();
+    const num = raw.replace(/[^\d+]/g, '');
+    if (raw && num.replace('+', '').length < 10){
+      setShareNote('Enter a full phone number with area code, or leave it blank to choose a contact in your messaging app.');
+      return;
+    }
+    const days = collectDays(true);
+    if (days.length === 0){
+      setShareNote('No upcoming events to text.');
+      return;
+    }
+    const isApple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+    const sep = isApple ? '&' : '?';
+    window.location.href = 'sms:' + num + sep + 'body=' + encodeURIComponent(buildTextMessage(days));
+    setShareNote('Opening your messaging app. Press send there to deliver it.');
+  });
+
+  renderGrid();
+  renderPanel();
+})();
+</script>
+</body>
+</html>
