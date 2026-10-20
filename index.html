@@ -73,6 +73,10 @@
   .dtc-empty-msg { font-size: 13px; color: #8A8478; padding: 4px 0 8px; }
   .dtc-error { font-size: 13px; color: #A32D2D; background: #FCEBEB; border: 1px solid #F0999A; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: none; }
   .dtc-error.dtc-show { display: block; }
+  .dtc-share { margin-top: 16px; background: #FFFFFF; border: 1px solid #EAE3D5; border-radius: 12px; padding: 16px 20px; }
+  .dtc-share-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 15px; margin-bottom: 4px; }
+  .dtc-share-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .dtc-share-note { font-size: 12px; color: #8A8478; margin-top: 10px; min-height: 16px; }
   .dtc-editrow { background: #FBF6EA; border: 1px solid #E4C77F; border-radius: 10px; padding: 4px 12px; margin: 4px 0; }
   .dtc-editrow:last-of-type { border-bottom: 1px solid #E4C77F; }
   .dtc-editlabel { font-size: 11px; font-weight: 500; color: #96751F; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 10px; }
@@ -116,6 +120,17 @@
     </div>
     <div class="dtc-addsection-note" id="dtc-addsection-note">Finish editing the task above to add a new one.</div>
     <div class="dtc-addsection-note" id="dtc-pastday-note">This day has passed, so tasks can no longer be added.</div>
+  </div>
+  <div class="dtc-share">
+    <div class="dtc-share-title">Share your calendar</div>
+    <div class="dtc-share-row">
+      <button class="dtc-cancelbtn" id="dtc-export-btn">Export all events to a file</button>
+    </div>
+    <div class="dtc-share-row">
+      <input class="dtc-input" id="dtc-phone" type="tel" placeholder="Phone number, like 555 123 4567" />
+      <button class="dtc-addbtn" id="dtc-text-btn">Text upcoming events</button>
+    </div>
+    <div class="dtc-share-note" id="dtc-share-note"></div>
   </div>
 </div>
 <script>
@@ -679,6 +694,96 @@
     renderPanel();
     renderGrid();
   }
+
+  // ---- export and text ----
+  function collectDays(onlyUpcoming){
+    const out = [];
+    try {
+      const prefix = 'dtc-tasks:';
+      for (let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if (!k || k.indexOf(prefix) !== 0) continue;
+        const dateKey = k.slice(prefix.length);
+        if (onlyUpcoming && dateKey < todayKey) continue;
+        const tasks = loadTasks(dateKey);
+        if (tasks.length) out.push({ key: dateKey, tasks: sortByStart(tasks) });
+      }
+    } catch(e){}
+    out.sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+    return out;
+  }
+
+  function keyToDate(key){
+    const p = key.split('-');
+    return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+  }
+
+  function buildExportText(days){
+    const lines = ['CALENDAR OF DOOM', 'Exported ' + new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }), ''];
+    days.forEach(day => {
+      lines.push(keyToDate(day.key).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
+      day.tasks.forEach(t => {
+        const time = formatTimeRange(t.startTime, t.endTime);
+        lines.push('  [' + (t.done ? 'x' : ' ') + '] ' + (time ? time + '  ' : '') + t.text);
+      });
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
+
+  function buildTextMessage(days){
+    const lines = ['Calendar of Doom'];
+    days.forEach(day => {
+      lines.push('');
+      lines.push(keyToDate(day.key).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }));
+      day.tasks.forEach(t => {
+        const time = formatTimeRange(t.startTime, t.endTime).replace(/–/g, '-');
+        lines.push('- ' + (time ? time + ' ' : '') + t.text + (t.done ? ' (done)' : ''));
+      });
+    });
+    return lines.join('\n');
+  }
+
+  function setShareNote(msg){
+    document.getElementById('dtc-share-note').textContent = msg;
+  }
+
+  document.getElementById('dtc-export-btn').addEventListener('click', () => {
+    const days = collectDays(false);
+    if (days.length === 0){
+      setShareNote('No events to export yet. Add a task and try again.');
+      return;
+    }
+    const blob = new Blob([buildExportText(days)], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'calendar-of-doom-' + todayKey + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const count = days.reduce((n, d) => n + d.tasks.length, 0);
+    setShareNote('Exported ' + count + ' event' + (count === 1 ? '' : 's') + ' across ' + days.length + ' day' + (days.length === 1 ? '' : 's') + '.');
+  });
+
+  document.getElementById('dtc-text-btn').addEventListener('click', () => {
+    const raw = document.getElementById('dtc-phone').value.trim();
+    const num = raw.replace(/[^\d+]/g, '');
+    if (raw && num.replace('+', '').length < 10){
+      setShareNote('Enter a full phone number with area code, or leave it blank to choose a contact in your messaging app.');
+      return;
+    }
+    const days = collectDays(true);
+    if (days.length === 0){
+      setShareNote('No upcoming events to text.');
+      return;
+    }
+    const isApple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+    const sep = isApple ? '&' : '?';
+    window.location.href = 'sms:' + num + sep + 'body=' + encodeURIComponent(buildTextMessage(days));
+    setShareNote('Opening your messaging app. Press send there to deliver it.');
+  });
 
   renderGrid();
   renderPanel();
